@@ -10,6 +10,7 @@ import (
 )
 
 // 	1. Run: go run .\cmd\api     go run .\cmd\api -port=3030 -env=production
+//	2. Use curl: curl -i localhost:4000/v1/healthcheck
 
 // Declare a string containing the application version number. 
 // Later in the book we'll generate this automatically at build time, 
