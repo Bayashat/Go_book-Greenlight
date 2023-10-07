@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/Bayashat/Go_book-Greenlight/internal/data"
+	"github.com/Bayashat/Go_book-Greenlight/internal/validator"
 	"net/http"
 	"time"
 )
@@ -14,18 +15,30 @@ func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Reques
 		Runtime data.Runtime `json:"runtime"` // Make this field a data.Runtime type.
 		Genres  []string     `json:"genres"`
 	}
-	// Use the new readJSON() helper to decode the request body into the input struct.
-	// If this returns an error we send the client the error message along
-	// 		with a 400 Bad Request status code, just like before.
 	err := app.readJSON(w, r, &input)
 	if err != nil {
-		// Use the new badRequestResponse() helper.
 		app.badRequestResponse(w, r, err)
 		return
 	}
+	// Copy the values from the input struct to a new Movie struct.
+	movie := &data.Movie{
+		Title:   input.Title,
+		Year:    input.Year,
+		Runtime: input.Runtime,
+		Genres:  input.Genres,
+	}
+
+	// Initialize a new Validator.
+	v := validator.New()
+
+	// Call the ValidateMovie() function and return a response containing the errors if any of the checks fail.
+	if data.ValidateMovie(v, movie); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
 	fmt.Fprintf(w, "%+v\n", input)
 }
-
 func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request) {
 	id, err := app.readIDParam(r)
 	if err != nil {
