@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"github.com/Bayashat/Go_book-Greenlight/internal/data"
 	"log"
 	"net/http"
 	"os"
@@ -27,13 +28,18 @@ type config struct {
 	port int
 	env  string
 	db   struct {
-		dsn string
+		dsn          string
+		maxOpenConns int
+		maxIdleConns int
+		maxIdleTime  string
 	}
 }
 
+// Add a models field to hold our new Models struct.
 type application struct {
 	config config
 	logger *log.Logger
+	models data.Models
 }
 
 func main() {
@@ -46,6 +52,12 @@ func main() {
 	// Use the value of the GREENLIGHT_DB_DSN environment variable as the default value
 	// for our db-dsn command-line flag.
 	flag.StringVar(&cfg.db.dsn, "db-dsn", os.Getenv("GREENLIGHT_DB_DSN"), "PostgreSQL DSN")
+
+	// Read the connection pool settings from command-line flags into the config struct.
+	// Notice the default values that we're using?
+	flag.IntVar(&cfg.db.maxOpenConns, "db-max-open-conns", 25, "PostgreSQL max open connections")
+	flag.IntVar(&cfg.db.maxIdleConns, "db-max-idle-conns", 25, "PostgreSQL max idle connections")
+	flag.StringVar(&cfg.db.maxIdleTime, "db-max-idle-time", "15m", "PostgreSQL max connection idle time")
 
 	flag.Parse()
 
@@ -65,10 +77,11 @@ func main() {
 	// Also log a message to say that the connection pool has been successfully established.
 	logger.Printf("database connection pool established")
 
-	// Declare an instance of the application struct, containing the config struct and the logger.
+	// Use the data.NewModels() function to initialize a Models struct, passing in the connection pool as a parameter.
 	app := &application{
 		config: cfg,
 		logger: logger,
+		models: data.NewModels(db),
 	}
 
 	// Declare a HTTP server with some sensible timeout settings, which listens on the
@@ -96,12 +109,31 @@ func openDB(cfg config) (*sql.DB, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Set the maximum number of open (in-use + idle) connections in the pool. Note that
+	// passing a value less than or equal to 0 will mean there is no limit.
+	db.SetMaxOpenConns(cfg.db.maxOpenConns)
+
+	// Set the maximum number of idle connections in the pool. Again, passing a value
+	// less than or equal to 0 will mean there is no limit.
+	db.SetMaxIdleConns(cfg.db.maxIdleConns)
+
+	// Use the time.ParseDuration() function to convert the idle timeout duration string
+	// to a time.Duration type.
+	duration, err := time.ParseDuration(cfg.db.maxIdleTime)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set the maximum idle timeout.
+	db.SetConnMaxIdleTime(duration)
+
 	// Create a context with a 5-second timeout deadline.
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+
 	// Use PingContext() to establish a new connection to the database, passing in the context we created above as a parameter.
-	// If the connection couldn't be established successfully within the 5 second deadline,
-	// then this will return an error.
+	// If the connection couldn't be established successfully within the 5 second deadline, then this will return an error.
 	err = db.PingContext(ctx)
 	if err != nil {
 		return nil, err
