@@ -207,12 +207,12 @@ func (app *application) listMoviesHandler(w http.ResponseWriter, r *http.Request
 	// Read the sort query string value into the embedded struct.
 	input.Filters.Sort = app.readString(qs, "sort", "id")
 
-	// Check the Validator instance for any errors and use the failedValidationResponse()
-	// helper to send the client a response if necessary.
-	if !v.Valid() {
+	// Add the supported sort values for this endpoint to the sort safelist.
+	input.Filters.SortSafelist = []string{"id", "title", "year", "runtime", "-id", "-title", "-year", "-runtime"}
+	// Execute the validation checks on the Filters struct and send a response containing the errors if necessary.
+	if data.ValidateFilters(v, input.Filters); !v.Valid() {
 		app.failedValidationResponse(w, r, v.Errors)
 		return
 	}
-	// Dump the contents of the input struct in a HTTP response.
 	fmt.Fprintf(w, "%+v\n", input)
 }
