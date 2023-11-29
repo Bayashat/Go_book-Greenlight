@@ -109,9 +109,9 @@ type UserModel struct {
 // that we did when creating a movie.
 func (m UserModel) Insert(user *User) error {
 	query := `
-INSERT INTO users (name, email, password_hash, activated)
-VALUES ($1, $2, $3, $4)
-RETURNING id, created_at, version`
+		INSERT INTO users (name, email, password_hash, activated)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id, created_at, version`
 	args := []interface{}{user.Name, user.Email, user.Password.hash, user.Activated}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -136,9 +136,9 @@ RETURNING id, created_at, version`
 // return one record (or none at all, in which case we return a ErrRecordNotFound error).
 func (m UserModel) GetByEmail(email string) (*User, error) {
 	query := `
-SELECT id, created_at, name, email, password_hash, activated, version
-FROM users
-WHERE email = $1`
+		SELECT id, created_at, name, email, password_hash, activated, version
+		FROM users
+		WHERE email = $1`
 	var user User
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
